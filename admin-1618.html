@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>字幕管理員</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f7f6f2;--card:#fff;--border:#e5e3dc;--text:#1a1a1a;--sub:#888;
+      --accent:#1a6ef5;--accent-light:#e8f0fe;--danger:#e53935;--success:#00a86b;
+      --warn:#f59e0b;--warn-light:#fef3c7;--radius:16px;
+    }
+    html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif}
+    .page{max-width:480px;margin:0 auto;padding:1.5rem 1rem 4rem}
+    .top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.8rem}
+    .top-bar h1{font-size:1.3rem;font-weight:900}
+    .badge{font-size:0.72rem;font-weight:700;padding:0.25rem 0.7rem;border-radius:20px;background:var(--accent-light);color:var(--accent)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem}
+    .card-title{font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:var(--sub);text-transform:uppercase;margin-bottom:0.9rem}
+    .num-row{display:flex;align-items:center;gap:0.8rem}
+    .num-btn{width:48px;height:48px;border-radius:12px;border:1px solid var(--border);background:var(--bg);font-size:1.5rem;cursor:pointer;color:var(--text);transition:background 0.15s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .num-btn:hover{background:var(--border)}
+    .num-display{flex:1;text-align:center;font-size:2.8rem;font-weight:900;color:var(--accent);background:var(--accent-light);border-radius:12px;padding:0.3rem}
+    .create-btn{width:100%;padding:1.1rem;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:1.05rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:background 0.2s,transform 0.1s;display:flex;align-items:center;justify-content:center;gap:0.5rem}
+    .create-btn:active{transform:scale(0.98)}
+    .create-btn:hover{background:#1558d6}
+    .pw-box{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;display:flex;align-items:center;justify-content:space-between}
+    .pw-code{font-size:1.8rem;font-weight:900;letter-spacing:0.15em;color:var(--text)}
+    .pw-note{font-size:0.72rem;color:var(--sub);text-align:right;line-height:1.4}
+    .warn-box{background:var(--warn-light);border:1px solid #fcd34d;border-radius:12px;padding:0.8rem 1rem;font-size:0.82rem;color:#92400e;display:flex;gap:0.5rem;align-items:flex-start}
+    .group-list{display:flex;flex-direction:column;gap:0.8rem}
+    .group-item{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1rem}
+    .group-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem}
+    .group-name{font-size:0.95rem;font-weight:700}
+    .qr-pair{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem}
+    .qr-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.7rem;text-align:center}
+    .qr-box-label{font-size:0.7rem;font-weight:700;margin-bottom:0.5rem}
+    .qr-box-label.guide{color:var(--success)}
+    .qr-box-label.student{color:var(--accent)}
+    .qr-box-inner{width:80px;height:80px;margin:0 auto 0.4rem}
+    .qr-box-inner canvas,.qr-box-inner img{width:80px!important;height:80px!important}
+    .expand-btn{font-size:0.68rem;color:var(--accent);background:none;border:none;cursor:pointer;font-family:'Noto Sans TC',sans-serif;padding:0}
+    .divider{border:none;border-top:1px solid var(--border);margin:0.8rem 0}
+    .add-group-btn{width:100%;padding:0.8rem;border-radius:12px;border:1px dashed var(--border);background:none;color:var(--sub);font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:border-color 0.2s,color 0.2s}
+    .add-group-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .hidden{display:none}
+    /* Modal */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;display:none;align-items:center;justify-content:center;padding:1.5rem}
+    .modal-bg.open{display:flex}
+    .modal-box{background:#fff;border-radius:20px;padding:1.5rem;text-align:center;max-width:300px;width:100%}
+    .modal-box h3{font-size:1rem;font-weight:700;margin-bottom:1rem}
+    .modal-qr{width:200px;height:200px;margin:0 auto 0.8rem}
+    .modal-qr canvas,.modal-qr img{width:200px!important;height:200px!important}
+    .modal-url{font-size:0.72rem;color:var(--sub);word-break:break-all;margin-bottom:1rem}
+    .modal-close{background:var(--text);color:#fff;border:none;border-radius:10px;padding:0.7rem 2rem;font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
+    /* Confirm modal */
+    .confirm-box{background:#fff;border-radius:20px;padding:1.5rem;max-width:300px;width:100%}
+    .confirm-box h3{font-size:1rem;font-weight:700;margin-bottom:0.5rem}
+    .confirm-box p{font-size:0.85rem;color:var(--sub);margin-bottom:1.2rem;line-height:1.5}
+    .confirm-btns{display:flex;gap:0.6rem}
+    .confirm-cancel{flex:1;padding:0.8rem;border-radius:10px;border:1px solid var(--border);background:none;font-family:'Noto Sans TC',sans-serif;font-size:0.9rem;cursor:pointer}
+    .confirm-ok{flex:1;padding:0.8rem;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:'Noto Sans TC',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer}
+    .section-hidden{opacity:0.4;pointer-events:none}
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="top-bar">
+    <h1>字幕管理</h1>
+    <span class="badge">系統管理員</span>
+  </div>
+
+  <!-- Step 1: Setup -->
+  <div class="card" id="setup-card">
+    <div class="card-title">建立新活動</div>
+    <div style="margin-bottom:1rem">
+      <div style="font-size:0.8rem;color:var(--sub);margin-bottom:0.6rem">今天分幾組？</div>
+      <div class="num-row">
+        <button class="num-btn" id="minus-btn">－</button>
+        <div class="num-display" id="group-count">3</div>
+        <button class="num-btn" id="plus-btn">＋</button>
+      </div>
+    </div>
+    <div class="warn-box" style="margin-bottom:1rem">
+      ⚠️ 建立新活動後，所有舊的字幕連結將立即失效，請確認上次活動已結束。
+    </div>
+    <button class="create-btn" id="create-btn">✦ 建立新活動</button>
+  </div>
+
+  <!-- Step 2: Result (hidden until created) -->
+  <div id="result-section" class="hidden">
+    <div class="card">
+      <div class="card-title">本次活動密碼</div>
+      <div class="pw-box">
+        <span class="pw-code" id="pw-display"></span>
+        <span class="pw-note">自動產生<br>舊連結已失效</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">各組 QR Code</div>
+      <div class="group-list" id="group-list"></div>
+      <div class="divider"></div>
+      <button class="add-group-btn" id="add-group-btn">＋ 臨時新增組別</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-bg hidden" id="qr-modal">
+  <div class="modal-box">
+    <h3 id="modal-title"></h3>
+    <div class="modal-qr" id="modal-qr"></div>
+    <div class="modal-url" id="modal-url"></div>
+    <button class="modal-close" id="modal-close">關閉</button>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-bg" id="confirm-modal">
+  <div class="confirm-box">
+    <h3>確認建立新活動？</h3>
+    <p>所有舊的字幕連結將立即失效，學員和導覽員需要重新掃描新的 QR Code。</p>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" id="confirm-cancel">取消</button>
+      <button class="confirm-ok" id="confirm-ok">確認建立</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FIREBASE_URL = "https://caption-live-f7131-default-rtdb.asia-southeast1.firebasedatabase.app";
+const BASE_URL = "https://liu777-wendy.github.io/caption-live";
+
+const app = initializeApp({ databaseURL: FIREBASE_URL });
+const db = getDatabase(app);
+
+let groupCount = 3;
+let currentCode = "";
+let totalGroups = 0;
+
+const groupCountEl = document.getElementById("group-count");
+document.getElementById("minus-btn").addEventListener("click", () => {
+  if (groupCount > 1) { groupCount--; groupCountEl.textContent = groupCount; }
+});
+document.getElementById("plus-btn").addEventListener("click", () => {
+  groupCount++; groupCountEl.textContent = groupCount;
+});
+
+function genCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function guideURL(group, code) {
+  return `${BASE_URL}/speaker.html?group=${group}&code=${code}`;
+}
+function studentURL(group, code) {
+  return `${BASE_URL}/caption-live.html?group=${group}&code=${code}`;
+}
+
+function makeQR(containerId, url, size = 80) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = "";
+  new QRCode(el, { text: url, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+}
+
+function addGroupItem(group, code) {
+  const list = document.getElementById("group-list");
+  const gurl = guideURL(group, code);
+  const surl = studentURL(group, code);
+  const id = `g${group}`;
+
+  const item = document.createElement("div");
+  item.className = "group-item";
+  item.id = `item-${id}`;
+  item.innerHTML = `
+    <div class="group-item-top">
+      <span class="group-name">第 ${group} 組</span>
+    </div>
+    <div class="qr-pair">
+      <div class="qr-box">
+        <div class="qr-box-label guide">🎤 導覽員</div>
+        <div class="qr-box-inner" id="qr-guide-${id}"></div>
+        <button class="expand-btn" data-url="${gurl}" data-title="第 ${group} 組 — 導覽員">放大</button>
+      </div>
+      <div class="qr-box">
+        <div class="qr-box-label student">👂 學員</div>
+        <div class="qr-box-inner" id="qr-student-${id}"></div>
+        <button class="expand-btn" data-url="${surl}" data-title="第 ${group} 組 — 學員">放大</button>
+      </div>
+    </div>
+  `;
+  list.appendChild(item);
+
+  setTimeout(() => {
+    makeQR(`qr-guide-${id}`, gurl, 80);
+    makeQR(`qr-student-${id}`, surl, 80);
+  }, 50);
+
+  item.querySelectorAll(".expand-btn").forEach(btn => {
+    btn.addEventListener("click", () => openModal(btn.dataset.title, btn.dataset.url));
+  });
+}
+
+async function createActivity(count) {
+  currentCode = genCode();
+  totalGroups = count;
+
+  // Clear all old captions in Firebase
+  await remove(ref(db, "captions"));
+  // Save current code and group count
+  await set(ref(db, "session"), { code: currentCode, groups: count, ts: Date.now() });
+
+  document.getElementById("pw-display").textContent = currentCode;
+  document.getElementById("group-list").innerHTML = "";
+
+  for (let i = 1; i <= count; i++) addGroupItem(i, currentCode);
+
+  document.getElementById("result-section").classList.remove("hidden");
+  document.getElementById("result-section").scrollIntoView({ behavior: "smooth" });
+}
+
+document.getElementById("create-btn").addEventListener("click", () => {
+  document.getElementById("confirm-modal").classList.add("open");
+});
+document.getElementById("confirm-cancel").addEventListener("click", () => {
+  document.getElementById("confirm-modal").classList.remove("open");
+});
+document.getElementById("confirm-ok").addEventListener("click", async () => {
+  document.getElementById("confirm-modal").classList.remove("open");
+  const btn = document.getElementById("create-btn");
+  btn.textContent = "建立中…";
+  btn.disabled = true;
+  await createActivity(groupCount);
+  btn.textContent = "✦ 建立新活動";
+  btn.disabled = false;
+});
+
+document.getElementById("add-group-btn").addEventListener("click", () => {
+  if (!currentCode) return;
+  totalGroups++;
+  addGroupItem(totalGroups, currentCode);
+  document.getElementById(`item-g${totalGroups}`).scrollIntoView({ behavior: "smooth" });
+});
+
+function openModal(title, url) {
+  document.getElementById("modal-title").textContent = title;
+  document.getElementById("modal-url").textContent = url;
+  document.getElementById("modal-qr").innerHTML = "";
+  document.getElementById("qr-modal").classList.add("open");
+  setTimeout(() => makeQR("modal-qr", url, 200), 50);
+}
+document.getElementById("modal-close").addEventListener("click", () => {
+  document.getElementById("qr-modal").classList.remove("open");
+});
+document.getElementById("qr-modal").addEventListener("click", e => {
+  if (e.target === document.getElementById("qr-modal"))
+    document.getElementById("qr-modal").classList.remove("open");
+});
+</script>
+</body>
+</html>
