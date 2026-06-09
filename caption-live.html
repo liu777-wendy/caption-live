@@ -1,253 +1,64 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>即時字幕</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0a0a0a;--text:#f0f0f0;--old1:#aaa;--old2:#666;--old3:#444;--panel-bg:#161616;--panel-border:#2a2a2a;--accent:#00e5ff;--font-size:2.2rem}
+    body.light{--bg:#f5f5f0;--text:#111;--old1:#777;--old2:#aaa;--old3:#ccc;--panel-bg:#fff;--panel-border:#ddd;--accent:#0077cc}
+    html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;overflow:hidden;transition:background 0.3s,color 0.3s}
 
-    :root {
-      --bg: #0a0a0a;
-      --text: #f0f0f0;
-      --old-text: #888;
-      --panel-bg: #161616;
-      --panel-border: #2a2a2a;
-      --accent: #00e5ff;
-      --font-size: 3.5rem;
-    }
+    /* Error */
+    #error-screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center}
+    #error-screen.show{display:flex}
+    .err-icon{font-size:3rem}
+    .err-title{font-size:1.2rem;font-weight:700}
+    .err-msg{font-size:0.9rem;opacity:0.6;line-height:1.6}
 
-    body.light {
-      --bg: #f5f5f0;
-      --text: #111;
-      --old-text: #999;
-      --panel-bg: #fff;
-      --panel-border: #ddd;
-      --accent: #0077cc;
-    }
+    #stage{width:100vw;height:100vh;display:flex;flex-direction:column;align-items:center;padding:4rem 1.5rem 5rem;transition:justify-content 0.3s}
+    #stage.pos-top{justify-content:flex-start}
+    #stage.pos-middle{justify-content:center}
+    #stage.pos-bottom{justify-content:flex-end}
+    #caption-box{width:100%;max-width:700px;display:flex;flex-direction:column;align-items:center;gap:0.6rem}
+    .caption-line{width:100%;font-size:var(--font-size);font-weight:700;line-height:1.5;text-align:center;letter-spacing:0.02em;word-break:break-word;padding:0 0.5rem;opacity:0;transform:translateY(8px);animation:fadeUp 0.3s ease forwards;transition:color 0.3s,font-size 0.2s}
+    .caption-line.age-1{color:var(--old1);font-size:calc(var(--font-size)*0.82);font-weight:500}
+    .caption-line.age-2{color:var(--old2);font-size:calc(var(--font-size)*0.68);font-weight:400}
+    .caption-line.age-3{color:var(--old3);font-size:calc(var(--font-size)*0.58);font-weight:400;opacity:0.6!important}
+    @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
 
-    html, body {
-      width: 100%; height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Noto Sans TC', sans-serif;
-      overflow: hidden;
-      transition: background 0.3s, color 0.3s;
-    }
+    #topbar{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;z-index:20}
+    #group-badge{font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);opacity:0.6}
+    #status-bar{display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;letter-spacing:0.1em;color:var(--old2)}
+    #dot{width:8px;height:8px;border-radius:50%;background:var(--old2);transition:background 0.4s}
+    #dot.live{background:#00e57a;box-shadow:0 0 8px #00e57a}
 
-    #stage {
-      width: 100vw; height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      padding: 2rem 3rem 4rem;
-    }
-
-    #caption-box {
-      width: 100%;
-      max-width: 1400px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .caption-line {
-      font-size: var(--font-size);
-      font-weight: 700;
-      line-height: 1.35;
-      text-align: center;
-      letter-spacing: 0.02em;
-      word-break: break-word;
-      padding: 0 1rem;
-      opacity: 0;
-      transform: translateY(10px);
-      animation: fadeUp 0.3s ease forwards;
-      transition: color 0.3s;
-    }
-
-    .caption-line.old {
-      color: var(--old-text);
-      font-size: calc(var(--font-size) * 0.65);
-      font-weight: 400;
-    }
-
-    @keyframes fadeUp {
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Top bar */
-    #topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.7rem 1rem;
-      z-index: 20;
-    }
-
-    #group-badge {
-      font-family: 'Noto Sans TC', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      color: var(--accent);
-      opacity: 0.7;
-    }
-
-    #status-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.8rem;
-      letter-spacing: 0.1em;
-      color: var(--old-text);
-    }
-
-    #dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--old-text);
-      transition: background 0.4s;
-    }
-    #dot.live { background: #00e57a; box-shadow: 0 0 8px #00e57a; }
-
-    /* Settings button */
-    #settings-btn {
-      position: fixed;
-      bottom: 1.2rem;
-      right: 1.2rem;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      cursor: pointer;
-      color: var(--old-text);
-      font-size: 1.2rem;
-      display: flex; align-items: center; justify-content: center;
-      transition: color 0.2s, border-color 0.2s;
-      z-index: 20;
-    }
-    #settings-btn:hover { color: var(--accent); border-color: var(--accent); }
-
-    /* Settings panel */
-    #settings-panel {
-      position: fixed;
-      bottom: 4rem;
-      right: 1.2rem;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 14px;
-      padding: 1.4rem;
-      display: none;
-      flex-direction: column;
-      gap: 1.2rem;
-      min-width: 240px;
-      z-index: 20;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    }
-    #settings-panel.open { display: flex; }
-
-    .setting-row {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-    .setting-row label {
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
-      color: var(--old-text);
-    }
-
-    /* Font size buttons */
-    .size-btns {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .size-btn {
-      flex: 1;
-      padding: 0.5rem;
-      border-radius: 8px;
-      border: 1px solid var(--panel-border);
-      background: none;
-      color: var(--text);
-      cursor: pointer;
-      font-family: 'Noto Sans TC', sans-serif;
-      font-size: 0.85rem;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    .size-btn:hover, .size-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #000;
-    }
-
-    /* Theme toggle */
-    .theme-btns {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .theme-btn {
-      flex: 1;
-      padding: 0.5rem;
-      border-radius: 8px;
-      border: 1px solid var(--panel-border);
-      background: none;
-      color: var(--text);
-      cursor: pointer;
-      font-family: 'Noto Sans TC', sans-serif;
-      font-size: 0.85rem;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    .theme-btn:hover, .theme-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #000;
-    }
-
-    /* Prev line toggle */
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .toggle {
-      position: relative;
-      width: 44px; height: 24px;
-    }
-    .toggle input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute;
-      inset: 0;
-      background: var(--panel-border);
-      border-radius: 24px;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .slider::before {
-      content: '';
-      position: absolute;
-      width: 18px; height: 18px;
-      left: 3px; top: 3px;
-      background: white;
-      border-radius: 50%;
-      transition: transform 0.3s;
-    }
-    .toggle input:checked + .slider { background: var(--accent); }
-    .toggle input:checked + .slider::before { transform: translateX(20px); }
+    #settings-btn{position:fixed;bottom:1.2rem;right:1.2rem;width:44px;height:44px;border-radius:50%;background:var(--panel-bg);border:1px solid var(--panel-border);cursor:pointer;color:var(--old2);font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:color 0.2s,border-color 0.2s;z-index:20}
+    #settings-btn:hover{color:var(--accent);border-color:var(--accent)}
+    #settings-panel{position:fixed;bottom:4.2rem;right:1.2rem;background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:16px;padding:1.4rem;display:none;flex-direction:column;gap:1.1rem;min-width:260px;z-index:20;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+    #settings-panel.open{display:flex}
+    .setting-row{display:flex;flex-direction:column;gap:0.45rem}
+    .setting-row>label{font-size:0.7rem;letter-spacing:0.08em;color:var(--old2);text-transform:uppercase}
+    .btn-group{display:flex;gap:0.4rem;flex-wrap:wrap}
+    .opt-btn{flex:1;min-width:0;padding:0.45rem 0.3rem;border-radius:8px;border:1px solid var(--panel-border);background:none;color:var(--text);cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-size:0.8rem;white-space:nowrap;transition:background 0.15s,border-color 0.15s,color 0.15s;text-align:center}
+    .opt-btn:hover{border-color:var(--accent)}
+    .opt-btn.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+    .setting-divider{border:none;border-top:1px solid var(--panel-border);margin:0}
   </style>
 </head>
 <body>
 
+<div id="error-screen">
+  <div class="err-icon">🔒</div>
+  <div class="err-title">連結已失效</div>
+  <div class="err-msg">此連結已過期或不正確。<br>請向工作人員重新取得 QR Code。</div>
+</div>
+
 <div id="topbar">
   <div id="group-badge"></div>
-  <div id="status-bar">
-    <div id="dot"></div>
-    <span id="status-text">連線中…</span>
-  </div>
+  <div id="status-bar"><div id="dot"></div><span id="status-text">連線中…</span></div>
 </div>
 
 <button id="settings-btn">⚙</button>
@@ -255,78 +66,105 @@
 <div id="settings-panel">
   <div class="setting-row">
     <label>字幕大小</label>
-    <div class="size-btns">
-      <button class="size-btn" data-size="2.2">小</button>
-      <button class="size-btn active" data-size="3.5">中</button>
-      <button class="size-btn" data-size="5">大</button>
-      <button class="size-btn" data-size="7">特大</button>
+    <div class="btn-group">
+      <button class="opt-btn" data-size="1.5">小</button>
+      <button class="opt-btn active" data-size="2.2">中</button>
+      <button class="opt-btn" data-size="3.2">大</button>
+      <button class="opt-btn" data-size="4.5">特大</button>
     </div>
   </div>
+  <hr class="setting-divider">
+  <div class="setting-row">
+    <label>字幕位置</label>
+    <div class="btn-group">
+      <button class="opt-btn pos-btn" data-pos="top">靠上</button>
+      <button class="opt-btn pos-btn active" data-pos="middle">置中</button>
+      <button class="opt-btn pos-btn" data-pos="bottom">靠下</button>
+    </div>
+  </div>
+  <hr class="setting-divider">
+  <div class="setting-row">
+    <label>保留句數</label>
+    <div class="btn-group">
+      <button class="opt-btn hist-btn" data-hist="1">1句</button>
+      <button class="opt-btn hist-btn active" data-hist="3">3句</button>
+      <button class="opt-btn hist-btn" data-hist="5">5句</button>
+      <button class="opt-btn hist-btn" data-hist="99">全部</button>
+    </div>
+  </div>
+  <hr class="setting-divider">
   <div class="setting-row">
     <label>背景主題</label>
-    <div class="theme-btns">
-      <button class="theme-btn active" data-theme="dark">🌙 深色</button>
-      <button class="theme-btn" data-theme="light">☀️ 淺色</button>
-    </div>
-  </div>
-  <div class="setting-row">
-    <div class="toggle-row">
-      <label>顯示前一句</label>
-      <label class="toggle">
-        <input type="checkbox" id="show-prev" checked>
-        <span class="slider"></span>
-      </label>
+    <div class="btn-group">
+      <button class="opt-btn theme-btn active" data-theme="dark">🌙 深色</button>
+      <button class="opt-btn theme-btn" data-theme="light">☀️ 淺色</button>
     </div>
   </div>
 </div>
 
-<div id="stage">
-  <div id="caption-box"></div>
-</div>
+<div id="stage" class="pos-middle"><div id="caption-box"></div></div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  const FIREBASE_URL = "https://caption-live-f7131-default-rtdb.asia-southeast1.firebasedatabase.app";
+const FIREBASE_URL = "https://caption-live-f7131-default-rtdb.asia-southeast1.firebasedatabase.app";
+const app = initializeApp({ databaseURL: FIREBASE_URL });
+const db = getDatabase(app);
 
-  // Get group from URL param
-  const params = new URLSearchParams(location.search);
-  const group = params.get("group") || "1";
+const params = new URLSearchParams(location.search);
+const group = params.get("group");
+const code = params.get("code");
+
+const dot = document.getElementById("dot");
+const statusText = document.getElementById("status-text");
+const box = document.getElementById("caption-box");
+const stage = document.getElementById("stage");
+
+let history = [];
+let maxHistory = 3;
+let currentText = "";
+
+function showError() {
+  document.getElementById("error-screen").classList.add("show");
+  document.getElementById("settings-btn").style.display = "none";
+  document.getElementById("topbar").style.display = "none";
+  stage.style.display = "none";
+}
+
+function render(newText) {
+  if (newText === currentText) return;
+  if (newText && currentText) history.push(currentText);
+  currentText = newText;
+  while (history.length > maxHistory - 1) history.shift();
+  box.innerHTML = "";
+  const visible = history.slice(-(maxHistory - 1));
+  visible.forEach((txt, i) => {
+    const age = Math.min(visible.length - i, 3);
+    const line = document.createElement("div");
+    line.className = `caption-line age-${age}`;
+    line.textContent = txt;
+    box.appendChild(line);
+  });
+  if (currentText) {
+    const line = document.createElement("div");
+    line.className = "caption-line";
+    line.textContent = currentText;
+    box.appendChild(line);
+  }
+}
+
+async function init() {
+  if (!group || !code) { showError(); return; }
+  try {
+    const snap = await get(ref(db, "session"));
+    const session = snap.val();
+    if (!session || session.code !== code) { showError(); return; }
+  } catch(e) { showError(); return; }
+
   document.getElementById("group-badge").textContent = `第 ${group} 組`;
 
-  const app = initializeApp({ databaseURL: FIREBASE_URL });
-  const db = getDatabase(app);
-  const captionRef = ref(db, `captions/group${group}`);
-
-  const dot = document.getElementById("dot");
-  const statusText = document.getElementById("status-text");
-  const box = document.getElementById("caption-box");
-
-  let prevText = "";
-  let currentText = "";
-  let showPrev = true;
-
-  function render(newText) {
-    if (newText === currentText) return;
-    prevText = currentText;
-    currentText = newText;
-    box.innerHTML = "";
-    if (showPrev && prevText) {
-      const oldLine = document.createElement("div");
-      oldLine.className = "caption-line old";
-      oldLine.textContent = prevText;
-      box.appendChild(oldLine);
-    }
-    if (currentText) {
-      const newLine = document.createElement("div");
-      newLine.className = "caption-line";
-      newLine.textContent = currentText;
-      box.appendChild(newLine);
-    }
-  }
-
-  onValue(captionRef, (snapshot) => {
+  onValue(ref(db, `captions/group${group}`), (snapshot) => {
     dot.classList.add("live");
     statusText.textContent = "LIVE";
     const val = snapshot.val();
@@ -336,34 +174,46 @@
     dot.classList.remove("live");
     statusText.textContent = "連線失敗";
   });
+}
 
-  // Settings
-  const settingsBtn = document.getElementById("settings-btn");
-  const settingsPanel = document.getElementById("settings-panel");
-  settingsBtn.addEventListener("click", e => { e.stopPropagation(); settingsPanel.classList.toggle("open"); });
-  document.addEventListener("click", () => settingsPanel.classList.remove("open"));
-  settingsPanel.addEventListener("click", e => e.stopPropagation());
+init();
 
-  document.querySelectorAll(".size-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      document.documentElement.style.setProperty("--font-size", btn.dataset.size + "rem");
-    });
+// Settings
+const settingsBtn = document.getElementById("settings-btn");
+const settingsPanel = document.getElementById("settings-panel");
+settingsBtn.addEventListener("click", e => { e.stopPropagation(); settingsPanel.classList.toggle("open"); });
+document.addEventListener("click", () => settingsPanel.classList.remove("open"));
+settingsPanel.addEventListener("click", e => e.stopPropagation());
+
+document.querySelectorAll("[data-size]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-size]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.documentElement.style.setProperty("--font-size", btn.dataset.size + "rem");
   });
-
-  document.querySelectorAll(".theme-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".theme-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      document.body.classList.toggle("light", btn.dataset.theme === "light");
-    });
+});
+document.querySelectorAll(".pos-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".pos-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    stage.className = `pos-${btn.dataset.pos}`;
   });
-
-  document.getElementById("show-prev").addEventListener("change", e => {
-    showPrev = e.target.checked;
+});
+document.querySelectorAll(".hist-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".hist-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    maxHistory = parseInt(btn.dataset.hist);
     render(currentText);
   });
+});
+document.querySelectorAll(".theme-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".theme-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.body.classList.toggle("light", btn.dataset.theme === "light");
+  });
+});
 </script>
 </body>
 </html>
