@@ -16,36 +16,42 @@
     .screen{display:none;min-height:100vh;flex-direction:column}
     .screen.active{display:flex}
 
-    /* Error screen */
     #screen-error{align-items:center;justify-content:center;padding:2rem;text-align:center;gap:1rem}
     .error-icon{font-size:3rem}
     .error-title{font-size:1.2rem;font-weight:700}
     .error-msg{font-size:0.9rem;color:var(--sub);line-height:1.6}
 
-    /* Voice screen */
-    #screen-voice{padding:1.2rem;gap:0.9rem;align-items:stretch}
+    #screen-voice,#screen-type{padding:1.2rem;gap:0.9rem;align-items:stretch}
     .top-bar{display:flex;align-items:center;gap:0.8rem}
     .screen-title{font-size:1rem;font-weight:700;flex:1}
     .group-pill{font-size:0.78rem;color:var(--success);font-weight:700;background:#e6f4ee;padding:0.2rem 0.7rem;border-radius:20px}
+    .mode-toggle{display:flex;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
+    .mode-tab{flex:1;padding:0.45rem;border-radius:8px;border:none;background:none;font-family:'Noto Sans TC',sans-serif;font-size:0.82rem;cursor:pointer;color:var(--sub);transition:background 0.15s,color 0.15s}
+    .mode-tab.active{background:var(--card);color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
     .qr-row{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:0.9rem;display:flex;align-items:center;gap:0.9rem}
     .qr-small{width:72px;height:72px;flex-shrink:0}
     .qr-small canvas,.qr-small img{width:72px!important;height:72px!important}
     .qr-info strong{display:block;font-size:0.82rem;font-weight:700}
     .qr-info span{font-size:0.7rem;color:var(--sub);word-break:break-all}
     .qr-expand{display:block;margin-top:0.3rem;font-size:0.7rem;color:var(--accent);background:none;border:none;cursor:pointer;font-family:'Noto Sans TC',sans-serif;padding:0}
-    .transcript{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;min-height:90px;font-size:0.95rem;line-height:1.7;position:relative}
+    .transcript{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;min-height:90px;font-size:0.95rem;line-height:1.7}
     #transcript-text{white-space:pre-wrap;word-break:break-word}
     #interim-text{color:var(--sub);font-style:italic}
     .placeholder{color:var(--sub);font-size:0.85rem}
-    .clear-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:0.55rem 1rem;font-size:0.82rem;color:var(--sub);cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:border-color 0.2s,color 0.2s;align-self:flex-start}
+
+    /* iOS voice input area */
+    .ios-input-area{display:none;flex-direction:column;gap:0.6rem}
+    .ios-input-area.show{display:flex}
+    .ios-voice-field{width:100%;padding:0.9rem 1rem;font-size:1rem;font-family:'Noto Sans TC',sans-serif;border:2px solid var(--accent);border-radius:12px;background:var(--card);color:var(--text);outline:none}
+    .ios-send-btn{width:100%;padding:0.9rem;border-radius:12px;border:none;background:var(--success);color:#fff;font-size:1rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
+
+    .clear-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:0.55rem 1rem;font-size:0.82rem;color:var(--sub);cursor:pointer;font-family:'Noto Sans TC',sans-serif;align-self:flex-start}
     .clear-btn:hover{border-color:var(--danger);color:var(--danger)}
     .mic-btn{width:100%;padding:1.1rem;border-radius:14px;border:none;font-size:1.1rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;background:var(--accent);color:#fff;transition:background 0.2s,transform 0.1s}
     .mic-btn.listening{background:var(--danger);animation:pulse 1.5s ease infinite}
     .mic-btn:active{transform:scale(0.98)}
     @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.35)}50%{box-shadow:0 0 0 10px rgba(229,57,53,0)}}
 
-    /* Type screen */
-    #screen-type{padding:1.2rem;gap:0.9rem;align-items:stretch}
     .collab-tip{background:var(--accent-light);border-radius:10px;padding:0.6rem 0.9rem;font-size:0.78rem;color:var(--accent)}
     textarea{flex:1;background:var(--card);border:2px solid var(--border);border-radius:var(--radius);padding:1rem;font-size:1rem;font-family:'Noto Sans TC',sans-serif;line-height:1.7;resize:none;color:var(--text);min-height:110px;outline:none;transition:border-color 0.2s}
     textarea:focus{border-color:var(--accent)}
@@ -54,7 +60,6 @@
     .send-btn:active{transform:scale(0.98)}
     .send-status{text-align:center;font-size:0.78rem;color:var(--success);min-height:1.1rem}
 
-    /* Modal */
     .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;display:none;align-items:center;justify-content:center;padding:1.5rem}
     .modal-bg.open{display:flex}
     .modal-box{background:#fff;border-radius:20px;padding:1.5rem;text-align:center;max-width:300px;width:100%}
@@ -64,22 +69,18 @@
     .modal-url{font-size:0.7rem;color:var(--sub);word-break:break-all;margin-bottom:1rem}
     .modal-close{background:var(--text);color:#fff;border:none;border-radius:10px;padding:0.65rem 1.8rem;font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
 
-    /* Mode select inside voice/type */
-    .mode-toggle{display:flex;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
-    .mode-tab{flex:1;padding:0.45rem;border-radius:8px;border:none;background:none;font-family:'Noto Sans TC',sans-serif;font-size:0.82rem;cursor:pointer;color:var(--sub);transition:background 0.15s,color 0.15s}
-    .mode-tab.active{background:var(--card);color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+    .ios-hint{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:0.6rem 0.9rem;font-size:0.78rem;color:#7c5800;display:none}
+    .ios-hint.show{display:block}
   </style>
 </head>
 <body>
 
-<!-- Error: no valid code/group -->
 <div id="screen-error" class="screen active">
   <div class="error-icon">🔒</div>
   <div class="error-title">無效的連結</div>
   <div class="error-msg">此連結已失效或不正確。<br>請向工作人員重新取得 QR Code。</div>
 </div>
 
-<!-- Voice mode -->
 <div id="screen-voice" class="screen">
   <div class="top-bar">
     <span class="screen-title">字幕發送</span>
@@ -97,6 +98,18 @@
       <button class="qr-expand" id="qr-expand-voice">放大 QR Code ▸</button>
     </div>
   </div>
+
+  <!-- iOS 提示 -->
+  <div class="ios-hint" id="ios-hint">
+    📱 iPhone 用戶：請在下方輸入框對著麥克風說話（點輸入框後按鍵盤上的🎤），說完按「送出字幕」
+  </div>
+
+  <!-- iOS 語音輸入區 -->
+  <div class="ios-input-area" id="ios-input-area">
+    <input class="ios-voice-field" id="ios-voice-field" type="text" placeholder="點此啟用麥克風輸入…" />
+    <button class="ios-send-btn" id="ios-send-btn">✓ 送出字幕</button>
+  </div>
+
   <div class="transcript">
     <div id="transcript-text"></div>
     <div id="interim-text"></div>
@@ -109,7 +122,6 @@
   </button>
 </div>
 
-<!-- Type mode -->
 <div id="screen-type" class="screen">
   <div class="top-bar">
     <span class="screen-title">字幕發送</span>
@@ -133,7 +145,6 @@
   <button class="send-btn" id="send-btn">送出字幕</button>
 </div>
 
-<!-- QR Modal -->
 <div class="modal-bg" id="qr-modal">
   <div class="modal-box">
     <h3 id="modal-title"></h3>
@@ -157,6 +168,8 @@ const params = new URLSearchParams(location.search);
 const group = params.get("group");
 const code = params.get("code");
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 function studentURL() {
   return `${BASE_URL}/caption-live.html?group=${group}&code=${code}`;
 }
@@ -170,19 +183,23 @@ function makeQR(id, url, size) {
 
 async function init() {
   if (!group || !code) { showError(); return; }
-  // Verify code matches Firebase session
   try {
     const snap = await get(ref(db, "session"));
     const session = snap.val();
     if (!session || session.code !== code) { showError(); return; }
   } catch(e) { showError(); return; }
 
-  // Valid — setup UI
   const surl = studentURL();
   document.getElementById("voice-group-pill").textContent = `第 ${group} 組`;
   document.getElementById("type-group-pill").textContent = `第 ${group} 組`;
   document.getElementById("qr-voice-url").textContent = surl;
   document.getElementById("qr-type-url").textContent = surl;
+
+  // Show iOS hint if on iPhone/iPad
+  if (isIOS) {
+    document.getElementById("ios-hint").classList.add("show");
+    document.getElementById("ios-input-area").classList.add("show");
+  }
 
   showScreen("screen-voice");
   setTimeout(() => { makeQR("qr-voice", surl, 72); makeQR("qr-type", surl, 72); }, 100);
@@ -217,14 +234,16 @@ function openModal(title, url) {
 document.getElementById("qr-expand-voice").addEventListener("click", () => openModal(`第 ${group} 組 學員字幕`, studentURL()));
 document.getElementById("qr-expand-type").addEventListener("click", () => openModal(`第 ${group} 組 學員字幕`, studentURL()));
 document.getElementById("modal-close").addEventListener("click", () => document.getElementById("qr-modal").classList.remove("open"));
-document.getElementById("qr-modal").addEventListener("click", e => { if (e.target === document.getElementById("qr-modal")) document.getElementById("qr-modal").classList.remove("open"); });
+document.getElementById("qr-modal").addEventListener("click", e => {
+  if (e.target === document.getElementById("qr-modal")) document.getElementById("qr-modal").classList.remove("open");
+});
 
 // Firebase send
 async function sendCaption(text) {
   await set(ref(db, `captions/group${group}`), { text, ts: Date.now() });
 }
 
-// Voice
+// ── Android / Desktop: WebSpeech API ──
 const micBtn = document.getElementById("mic-btn");
 const micIcon = document.getElementById("mic-icon");
 const micLabel = document.getElementById("mic-label");
@@ -244,6 +263,7 @@ function stopListening() {
 }
 
 micBtn.addEventListener("click", () => {
+  if (isIOS) return; // iOS uses input field instead
   if (isListening) { stopListening(); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert("請使用 Chrome 瀏覽器開啟此頁面以使用語音功能"); return; }
@@ -264,7 +284,11 @@ micBtn.addEventListener("click", () => {
       const t = e.results[i][0].transcript;
       if (e.results[i].isFinal) final += t; else interim += t;
     }
-    if (final) { fullTranscript += final; transcriptText.textContent = fullTranscript; sendCaption(final.trim()); }
+    if (final) {
+      fullTranscript += final;
+      transcriptText.textContent = fullTranscript;
+      sendCaption(final.trim());
+    }
     interimText.textContent = interim;
   };
   recognition.onerror = (e) => { if (e.error !== "aborted") console.error(e.error); };
@@ -272,15 +296,41 @@ micBtn.addEventListener("click", () => {
   recognition.start();
 });
 
+// ── iOS: input field voice ──
+const iosField = document.getElementById("ios-voice-field");
+const iosSendBtn = document.getElementById("ios-send-btn");
+
+if (iosField) {
+  iosSendBtn.addEventListener("click", () => {
+    const text = iosField.value.trim();
+    if (!text) return;
+    fullTranscript += (fullTranscript ? "\n" : "") + text;
+    transcriptText.textContent = fullTranscript;
+    placeholder.style.display = "none";
+    sendCaption(text);
+    iosField.value = "";
+    iosField.focus();
+  });
+
+  iosField.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); iosSendBtn.click(); }
+  });
+}
+
 document.getElementById("clear-btn").addEventListener("click", () => {
-  fullTranscript = ""; transcriptText.textContent = ""; interimText.textContent = "";
-  placeholder.style.display = ""; sendCaption("");
+  fullTranscript = "";
+  transcriptText.textContent = "";
+  interimText.textContent = "";
+  placeholder.style.display = "";
+  if (iosField) iosField.value = "";
+  sendCaption("");
 });
 
-// Type mode
+// ── Type mode ──
 const sendBtn = document.getElementById("send-btn");
 const typeTextarea = document.getElementById("type-textarea");
 const sendStatus = document.getElementById("send-status");
+
 sendBtn.addEventListener("click", async () => {
   const text = typeTextarea.value.trim();
   if (!text) return;
@@ -290,6 +340,7 @@ sendBtn.addEventListener("click", async () => {
   typeTextarea.value = "";
   typeTextarea.focus();
 });
+
 typeTextarea.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
 });
