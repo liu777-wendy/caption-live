@@ -38,16 +38,9 @@
     #transcript-text{white-space:pre-wrap;word-break:break-word}
     #interim-text{color:var(--sub);font-style:italic}
     .placeholder{color:var(--sub);font-size:0.85rem}
-
-    /* iOS voice input area */
-    .ios-input-area{display:none;flex-direction:column;gap:0.6rem}
-    .ios-input-area.show{display:flex}
-    .ios-voice-field{width:100%;padding:0.9rem 1rem;font-size:1rem;font-family:'Noto Sans TC',sans-serif;border:2px solid var(--accent);border-radius:12px;background:var(--card);color:var(--text);outline:none}
-    .ios-send-btn{width:100%;padding:0.9rem;border-radius:12px;border:none;background:var(--success);color:#fff;font-size:1rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
-
     .clear-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:0.55rem 1rem;font-size:0.82rem;color:var(--sub);cursor:pointer;font-family:'Noto Sans TC',sans-serif;align-self:flex-start}
     .clear-btn:hover{border-color:var(--danger);color:var(--danger)}
-    .mic-btn{width:100%;padding:1.1rem;border-radius:14px;border:none;font-size:1.1rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;background:var(--accent);color:#fff;transition:background 0.2s,transform 0.1s}
+    .mic-btn{width:100%;padding:1.2rem;border-radius:14px;border:none;font-size:1.15rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;background:var(--accent);color:#fff;transition:background 0.2s,transform 0.1s;-webkit-tap-highlight-color:transparent}
     .mic-btn.listening{background:var(--danger);animation:pulse 1.5s ease infinite}
     .mic-btn:active{transform:scale(0.98)}
     @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.35)}50%{box-shadow:0 0 0 10px rgba(229,57,53,0)}}
@@ -68,9 +61,6 @@
     .modal-qr canvas,.modal-qr img{width:200px!important;height:200px!important}
     .modal-url{font-size:0.7rem;color:var(--sub);word-break:break-all;margin-bottom:1rem}
     .modal-close{background:var(--text);color:#fff;border:none;border-radius:10px;padding:0.65rem 1.8rem;font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
-
-    .ios-hint{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:0.6rem 0.9rem;font-size:0.78rem;color:#7c5800;display:none}
-    .ios-hint.show{display:block}
   </style>
 </head>
 <body>
@@ -98,18 +88,6 @@
       <button class="qr-expand" id="qr-expand-voice">放大 QR Code ▸</button>
     </div>
   </div>
-
-  <!-- iOS 提示 -->
-  <div class="ios-hint" id="ios-hint">
-    📱 iPhone 用戶：請在下方輸入框對著麥克風說話（點輸入框後按鍵盤上的🎤），說完按「送出字幕」
-  </div>
-
-  <!-- iOS 語音輸入區 -->
-  <div class="ios-input-area" id="ios-input-area">
-    <input class="ios-voice-field" id="ios-voice-field" type="text" placeholder="點此啟用麥克風輸入…" />
-    <button class="ios-send-btn" id="ios-send-btn">✓ 送出字幕</button>
-  </div>
-
   <div class="transcript">
     <div id="transcript-text"></div>
     <div id="interim-text"></div>
@@ -154,196 +132,193 @@
   </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<script>
+// Use regular script (not module) for better iOS Safari compatibility
+(async function() {
+  const FIREBASE_URL = "https://caption-live-f7131-default-rtdb.asia-southeast1.firebasedatabase.app";
+  const BASE_URL = "https://liu777-wendy.github.io/caption-live";
 
-const FIREBASE_URL = "https://caption-live-f7131-default-rtdb.asia-southeast1.firebasedatabase.app";
-const BASE_URL = "https://liu777-wendy.github.io/caption-live";
+  const params = new URLSearchParams(location.search);
+  const group = params.get("group");
+  const code = params.get("code");
 
-const app = initializeApp({ databaseURL: FIREBASE_URL });
-const db = getDatabase(app);
+  function studentURL() {
+    return BASE_URL + "/caption-live.html?group=" + group + "&code=" + code;
+  }
 
-const params = new URLSearchParams(location.search);
-const group = params.get("group");
-const code = params.get("code");
+  function makeQR(id, url, size) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = "";
+    new QRCode(el, { text: url, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+  }
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  function showError() {
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    document.getElementById("screen-error").classList.add("active");
+  }
 
-function studentURL() {
-  return `${BASE_URL}/caption-live.html?group=${group}&code=${code}`;
-}
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    document.getElementById(id).classList.add("active");
+  }
 
-function makeQR(id, url, size) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = "";
-  new QRCode(el, { text: url, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
-}
+  // Verify session via REST API (avoids module import issues on iOS)
+  async function verifySession() {
+    if (!group || !code) return false;
+    try {
+      var res = await fetch(FIREBASE_URL + "/session.json");
+      var session = await res.json();
+      return session && session.code === code;
+    } catch(e) { return false; }
+  }
 
-async function init() {
-  if (!group || !code) { showError(); return; }
-  try {
-    const snap = await get(ref(db, "session"));
-    const session = snap.val();
-    if (!session || session.code !== code) { showError(); return; }
-  } catch(e) { showError(); return; }
+  async function sendCaption(text) {
+    try {
+      await fetch(FIREBASE_URL + "/captions/group" + group + ".json", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text, ts: Date.now() })
+      });
+    } catch(e) { console.error(e); }
+  }
 
-  const surl = studentURL();
-  document.getElementById("voice-group-pill").textContent = `第 ${group} 組`;
-  document.getElementById("type-group-pill").textContent = `第 ${group} 組`;
+  var valid = await verifySession();
+  if (!valid) { showError(); return; }
+
+  var surl = studentURL();
+  document.getElementById("voice-group-pill").textContent = "第 " + group + " 組";
+  document.getElementById("type-group-pill").textContent = "第 " + group + " 組";
   document.getElementById("qr-voice-url").textContent = surl;
   document.getElementById("qr-type-url").textContent = surl;
 
-  // Show iOS hint if on iPhone/iPad
-  if (isIOS) {
-    document.getElementById("ios-hint").classList.add("show");
-    document.getElementById("ios-input-area").classList.add("show");
+  showScreen("screen-voice");
+  setTimeout(function(){ makeQR("qr-voice", surl, 72); makeQR("qr-type", surl, 72); }, 100);
+
+  // Mode tabs
+  document.getElementById("tab-type").addEventListener("click", function(){ showScreen("screen-type"); });
+  document.getElementById("tab-voice2").addEventListener("click", function(){ showScreen("screen-voice"); });
+  document.getElementById("tab-voice").addEventListener("click", function(){ showScreen("screen-voice"); });
+  document.getElementById("tab-type2").addEventListener("click", function(){ showScreen("screen-type"); });
+
+  // QR Modal
+  function openModal(title, url) {
+    document.getElementById("modal-title").textContent = title;
+    document.getElementById("modal-url").textContent = url;
+    document.getElementById("modal-qr").innerHTML = "";
+    document.getElementById("qr-modal").classList.add("open");
+    setTimeout(function(){ makeQR("modal-qr", url, 200); }, 50);
+  }
+  document.getElementById("qr-expand-voice").addEventListener("click", function(){ openModal("第 " + group + " 組 學員字幕", surl); });
+  document.getElementById("qr-expand-type").addEventListener("click", function(){ openModal("第 " + group + " 組 學員字幕", surl); });
+  document.getElementById("modal-close").addEventListener("click", function(){ document.getElementById("qr-modal").classList.remove("open"); });
+  document.getElementById("qr-modal").addEventListener("click", function(e){
+    if (e.target === document.getElementById("qr-modal")) document.getElementById("qr-modal").classList.remove("open");
+  });
+
+  // ── Voice (WebSpeech — works on both iOS Safari 14.5+ and Android Chrome) ──
+  var micBtn = document.getElementById("mic-btn");
+  var micIcon = document.getElementById("mic-icon");
+  var micLabel = document.getElementById("mic-label");
+  var transcriptText = document.getElementById("transcript-text");
+  var interimText = document.getElementById("interim-text");
+  var placeholder = document.getElementById("voice-placeholder");
+  var recognition = null;
+  var isListening = false;
+  var fullTranscript = "";
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function stopListening() {
+    if (recognition) { try { recognition.stop(); } catch(e){} }
+    isListening = false;
+    micBtn.classList.remove("listening");
+    micIcon.textContent = "🎤";
+    micLabel.textContent = "開始說話";
   }
 
-  showScreen("screen-voice");
-  setTimeout(() => { makeQR("qr-voice", surl, 72); makeQR("qr-type", surl, 72); }, 100);
-}
-
-function showError() {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById("screen-error").classList.add("active");
-}
-
-function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
-
-init();
-
-// Mode tabs
-document.getElementById("tab-type").addEventListener("click", () => showScreen("screen-type"));
-document.getElementById("tab-voice2").addEventListener("click", () => showScreen("screen-voice"));
-document.getElementById("tab-voice").addEventListener("click", () => showScreen("screen-voice"));
-document.getElementById("tab-type2").addEventListener("click", () => showScreen("screen-type"));
-
-// QR expand
-function openModal(title, url) {
-  document.getElementById("modal-title").textContent = title;
-  document.getElementById("modal-url").textContent = url;
-  document.getElementById("modal-qr").innerHTML = "";
-  document.getElementById("qr-modal").classList.add("open");
-  setTimeout(() => makeQR("modal-qr", url, 200), 50);
-}
-document.getElementById("qr-expand-voice").addEventListener("click", () => openModal(`第 ${group} 組 學員字幕`, studentURL()));
-document.getElementById("qr-expand-type").addEventListener("click", () => openModal(`第 ${group} 組 學員字幕`, studentURL()));
-document.getElementById("modal-close").addEventListener("click", () => document.getElementById("qr-modal").classList.remove("open"));
-document.getElementById("qr-modal").addEventListener("click", e => {
-  if (e.target === document.getElementById("qr-modal")) document.getElementById("qr-modal").classList.remove("open");
-});
-
-// Firebase send
-async function sendCaption(text) {
-  await set(ref(db, `captions/group${group}`), { text, ts: Date.now() });
-}
-
-// ── Android / Desktop: WebSpeech API ──
-const micBtn = document.getElementById("mic-btn");
-const micIcon = document.getElementById("mic-icon");
-const micLabel = document.getElementById("mic-label");
-const transcriptText = document.getElementById("transcript-text");
-const interimText = document.getElementById("interim-text");
-const placeholder = document.getElementById("voice-placeholder");
-let recognition = null;
-let isListening = false;
-let fullTranscript = "";
-
-function stopListening() {
-  if (recognition) recognition.stop();
-  isListening = false;
-  micBtn.classList.remove("listening");
-  micIcon.textContent = "🎤";
-  micLabel.textContent = "開始說話";
-}
-
-micBtn.addEventListener("click", () => {
-  if (isIOS) return; // iOS uses input field instead
-  if (isListening) { stopListening(); return; }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("請使用 Chrome 瀏覽器開啟此頁面以使用語音功能"); return; }
-  recognition = new SR();
-  recognition.lang = "zh-TW";
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.onstart = () => {
-    isListening = true;
-    micBtn.classList.add("listening");
-    micIcon.textContent = "⏹";
-    micLabel.textContent = "停止說話";
-    placeholder.style.display = "none";
-  };
-  recognition.onresult = (e) => {
-    let interim = "", final = "";
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t; else interim += t;
+  micBtn.addEventListener("click", function() {
+    if (!SR) {
+      alert("您的瀏覽器不支援語音辨識。\niPhone 請使用 Safari；Android 請使用 Chrome。");
+      return;
     }
-    if (final) {
-      fullTranscript += final;
-      transcriptText.textContent = fullTranscript;
-      sendCaption(final.trim());
-    }
-    interimText.textContent = interim;
-  };
-  recognition.onerror = (e) => { if (e.error !== "aborted") console.error(e.error); };
-  recognition.onend = () => { if (isListening) recognition.start(); };
-  recognition.start();
-});
+    if (isListening) { stopListening(); return; }
 
-// ── iOS: input field voice ──
-const iosField = document.getElementById("ios-voice-field");
-const iosSendBtn = document.getElementById("ios-send-btn");
+    recognition = new SR();
+    recognition.lang = "zh-TW";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
-if (iosField) {
-  iosSendBtn.addEventListener("click", () => {
-    const text = iosField.value.trim();
+    recognition.onstart = function() {
+      isListening = true;
+      micBtn.classList.add("listening");
+      micIcon.textContent = "⏹";
+      micLabel.textContent = "停止說話";
+      placeholder.style.display = "none";
+    };
+
+    recognition.onresult = function(e) {
+      var interim = "";
+      var final = "";
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t;
+        else interim += t;
+      }
+      if (final) {
+        fullTranscript += final;
+        transcriptText.textContent = fullTranscript;
+        sendCaption(final.trim());
+      }
+      interimText.textContent = interim;
+    };
+
+    recognition.onerror = function(e) {
+      if (e.error === "not-allowed") {
+        alert("請允許麥克風權限後再試一次");
+        stopListening();
+      }
+    };
+
+    recognition.onend = function() {
+      // Auto-restart to keep listening (iOS may stop after silence)
+      if (isListening) {
+        try { recognition.start(); } catch(e) {}
+      }
+    };
+
+    recognition.start();
+  });
+
+  document.getElementById("clear-btn").addEventListener("click", function() {
+    fullTranscript = "";
+    transcriptText.textContent = "";
+    interimText.textContent = "";
+    placeholder.style.display = "";
+    sendCaption("");
+  });
+
+  // ── Type mode ──
+  var sendBtn = document.getElementById("send-btn");
+  var typeTextarea = document.getElementById("type-textarea");
+  var sendStatus = document.getElementById("send-status");
+
+  sendBtn.addEventListener("click", async function() {
+    var text = typeTextarea.value.trim();
     if (!text) return;
-    fullTranscript += (fullTranscript ? "\n" : "") + text;
-    transcriptText.textContent = fullTranscript;
-    placeholder.style.display = "none";
-    sendCaption(text);
-    iosField.value = "";
-    iosField.focus();
+    await sendCaption(text);
+    sendStatus.textContent = "✓ 已送出";
+    setTimeout(function(){ sendStatus.textContent = ""; }, 2000);
+    typeTextarea.value = "";
+    typeTextarea.focus();
   });
 
-  iosField.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); iosSendBtn.click(); }
+  typeTextarea.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
   });
-}
 
-document.getElementById("clear-btn").addEventListener("click", () => {
-  fullTranscript = "";
-  transcriptText.textContent = "";
-  interimText.textContent = "";
-  placeholder.style.display = "";
-  if (iosField) iosField.value = "";
-  sendCaption("");
-});
-
-// ── Type mode ──
-const sendBtn = document.getElementById("send-btn");
-const typeTextarea = document.getElementById("type-textarea");
-const sendStatus = document.getElementById("send-status");
-
-sendBtn.addEventListener("click", async () => {
-  const text = typeTextarea.value.trim();
-  if (!text) return;
-  await sendCaption(text);
-  sendStatus.textContent = "✓ 已送出";
-  setTimeout(() => sendStatus.textContent = "", 2000);
-  typeTextarea.value = "";
-  typeTextarea.focus();
-});
-
-typeTextarea.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
-});
+})();
 </script>
 </body>
 </html>
