@@ -269,9 +269,12 @@
       if (final) {
         fullTranscript += final;
         transcriptText.textContent = fullTranscript;
-        sendCaption(final.trim());
+        interimText.textContent = "";
+        sendCaption(fullTranscript.trim());
+      } else if (interim) {
+        interimText.textContent = interim;
+        sendCaption((fullTranscript + interim).trim());
       }
-      interimText.textContent = interim;
     };
 
     recognition.onerror = function(e) {
