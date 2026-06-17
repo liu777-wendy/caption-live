@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>字幕發送</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f7f6f2;--card:#fff;--border:#e5e3dc;--text:#1a1a1a;--sub:#888;
+      --accent:#1a6ef5;--accent-light:#e8f0fe;--danger:#e53935;--success:#00a86b;--radius:16px;
+    }
+    html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif}
+    .screen{display:none;min-height:100vh;flex-direction:column}
+    .screen.active{display:flex}
+
+    #screen-error{align-items:center;justify-content:center;padding:2rem;text-align:center;gap:1rem}
+    .error-icon{font-size:3rem}
+    .error-title{font-size:1.2rem;font-weight:700}
+    .error-msg{font-size:0.9rem;color:var(--sub);line-height:1.6}
+
+    #screen-voice,#screen-type{padding:1.2rem;gap:0.8rem;align-items:stretch}
+    .top-bar{display:flex;align-items:center;gap:0.8rem}
+    .screen-title{font-size:1rem;font-weight:700;flex:1}
+    .group-pill{font-size:0.78rem;color:var(--success);font-weight:700;background:#e6f4ee;padding:0.2rem 0.7rem;border-radius:20px}
+    .mode-toggle{display:flex;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
+    .mode-tab{flex:1;padding:0.45rem;border-radius:8px;border:none;background:none;font-family:'Noto Sans TC',sans-serif;font-size:0.82rem;cursor:pointer;color:var(--sub);transition:background 0.15s,color 0.15s}
+    .mode-tab.active{background:var(--card);color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+    .qr-row{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:0.9rem;display:flex;align-items:center;gap:0.9rem}
+    .qr-small{width:72px;height:72px;flex-shrink:0}
+    .qr-small canvas,.qr-small img{width:72px!important;height:72px!important}
+    .qr-info strong{display:block;font-size:0.82rem;font-weight:700}
+    .qr-info span{font-size:0.7rem;color:var(--sub);word-break:break-all}
+    .qr-expand{display:block;margin-top:0.3rem;font-size:0.7rem;color:var(--accent);background:none;border:none;cursor:pointer;font-family:'Noto Sans TC',sans-serif;padding:0}
+    .transcript{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;min-height:90px;font-size:0.9rem;line-height:1.8;overflow-y:auto;max-height:200px}
+    #transcript-text{white-space:pre-wrap;word-break:break-word;color:var(--text)}
+    #interim-text{color:var(--sub);font-style:italic}
+    .placeholder{color:var(--sub);font-size:0.85rem}
+    .action-row{display:flex;gap:0.5rem}
+    .clear-btn{flex:1;background:none;border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.8rem;font-size:0.82rem;color:var(--sub);cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:border-color 0.2s,color 0.2s}
+    .clear-btn:hover{border-color:var(--danger);color:var(--danger)}
+    .save-btn{flex:1;background:none;border:1px solid var(--success);border-radius:10px;padding:0.55rem 0.8rem;font-size:0.82rem;color:var(--success);cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-weight:700}
+    .mic-btn{width:100%;padding:1.2rem;border-radius:14px;border:none;font-size:1.15rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;background:var(--accent);color:#fff;transition:background 0.2s,transform 0.1s;-webkit-tap-highlight-color:transparent}
+    .mic-btn.listening{background:var(--danger);animation:pulse 1.5s ease infinite}
+    .mic-btn:active{transform:scale(0.98)}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0.35)}50%{box-shadow:0 0 0 10px rgba(229,57,53,0)}}
+
+    .collab-tip{background:var(--accent-light);border-radius:10px;padding:0.6rem 0.9rem;font-size:0.78rem;color:var(--accent)}
+    textarea{flex:1;background:var(--card);border:2px solid var(--border);border-radius:var(--radius);padding:1rem;font-size:1rem;font-family:'Noto Sans TC',sans-serif;line-height:1.7;resize:none;color:var(--text);min-height:110px;outline:none;transition:border-color 0.2s}
+    textarea:focus{border-color:var(--accent)}
+    textarea::placeholder{color:var(--sub)}
+    .send-btn{width:100%;padding:1rem;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:1.05rem;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:background 0.2s,transform 0.1s}
+    .send-btn:active{transform:scale(0.98)}
+    .send-status{text-align:center;font-size:0.78rem;color:var(--success);min-height:1.1rem}
+
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;display:none;align-items:center;justify-content:center;padding:1.5rem}
+    .modal-bg.open{display:flex}
+    .modal-box{background:#fff;border-radius:20px;padding:1.5rem;text-align:center;max-width:300px;width:100%}
+    .modal-box h3{font-size:1rem;font-weight:700;margin-bottom:0.8rem}
+    .modal-qr{width:200px;height:200px;margin:0 auto 0.7rem}
+    .modal-qr canvas,.modal-qr img{width:200px!important;height:200px!important}
+    .modal-url{font-size:0.7rem;color:var(--sub);word-break:break-all;margin-bottom:1rem}
+    .modal-close{background:var(--text);color:#fff;border:none;border-radius:10px;padding:0.65rem 1.8rem;font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
+  </style>
+</head>
+<body>
+
+<div id="screen-error" class="screen active">
+  <div class="error-icon">🔒</div>
+  <div class="error-title">無效的連結</div>
+  <div class="error-msg">此連結已失效或不正確。<br>請向工作人員重新取得 QR Code。</div>
+</div>
+
+<div id="screen-voice" class="screen">
+  <div class="top-bar">
+    <span class="screen-title">字幕發送</span>
+    <span class="group-pill" id="voice-group-pill"></span>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-tab active" id="tab-voice">🎤 語音</button>
+    <button class="mode-tab" id="tab-type">⌨️ 聽打</button>
+  </div>
+  <div class="qr-row">
+    <div class="qr-small" id="qr-voice"></div>
+    <div class="qr-info">
+      <strong>學員掃描看字幕</strong>
+      <span id="qr-voice-url"></span>
+      <button class="qr-expand" id="qr-expand-voice">放大 QR Code ▸</button>
+    </div>
+  </div>
+  <div class="transcript">
+    <div id="transcript-text"></div>
+    <div id="interim-text"></div>
+    <div class="placeholder" id="voice-placeholder">按下方按鈕開始說話…</div>
+  </div>
+  <div class="action-row">
+    <button class="clear-btn" id="clear-btn">🗑 清除字幕</button>
+    <button class="save-btn" id="save-btn">💾 下載文字紀錄</button>
+  </div>
+  <button class="mic-btn" id="mic-btn">
+    <span id="mic-icon">🎤</span>
+    <span id="mic-label">開始說話</span>
+  </button>
+</div>
+
+<div id="screen-type" class="screen">
+  <div class="top-bar">
+    <span class="screen-title">字幕發送</span>
+    <span class="group-pill" id="type-group-pill"></span>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-tab" id="tab-voice2">🎤 語音</button>
+    <button class="mode-tab active" id="tab-type2">⌨️ 聽打</button>
+  </div>
+  <div class="qr-row">
+    <div class="qr-small" id="qr-type"></div>
+    <div class="qr-info">
+      <strong>學員掃描看字幕</strong>
+      <span id="qr-type-url"></span>
+      <button class="qr-expand" id="qr-expand-type">放大 QR Code ▸</button>
+    </div>
+  </div>
+  <div class="collab-tip">💡 兩人協作：主聽打員輸入，校對員修改後按送出</div>
+  <textarea id="type-textarea" placeholder="輸入文字後按「送出字幕」&#10;學員畫面立即更新"></textarea>
+  <div class="send-status" id="send-status"></div>
+  <button class="send-btn" id="send-btn">送出字幕</button>
+</div>
+
+<div class="modal-bg" id="qr-modal">
+  <div class="modal-box">
+    <h3 id="modal-title"></h3>
+    <div class="modal-qr" id="modal-qr"></div>
+    <div class="modal-url" id="modal-url"></div>
+    <button class="modal-close" id="modal-close">關閉</button>
+  </div>
+</div>
+
+<script>
+(async function() {
+  var FIREBASE_URL = "https://caption-live-f7131-default-rtdb.asia-southeast1.firebasedatabase.app";
+  var BASE_URL = "https://liu777-wendy.github.io/caption-live";
+
+  var params = new URLSearchParams(location.search);
+  var group = params.get("group");
+  var code = params.get("code");
+
+  function studentURL() {
+    return BASE_URL + "/caption-live.html?group=" + group + "&code=" + code;
+  }
+
+  function makeQR(id, url, size) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = "";
+    new QRCode(el, { text: url, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+  }
+
+  function showError() {
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    document.getElementById("screen-error").classList.add("active");
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    document.getElementById(id).classList.add("active");
+  }
+
+  async function verifySession() {
+    if (!group || !code) return false;
+    try {
+      var res = await fetch(FIREBASE_URL + "/session.json");
+      var session = await res.json();
+      return session && session.code === code;
+    } catch(e) { return false; }
+  }
+
+  async function sendCaption(text, isInterim) {
+    try {
+      await fetch(FIREBASE_URL + "/captions/group" + group + ".json", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text, interim: isInterim ? true : false, ts: Date.now() })
+      });
+    } catch(e) { console.error(e); }
+  }
+
+  var valid = await verifySession();
+  if (!valid) { showError(); return; }
+
+  var surl = studentURL();
+  document.getElementById("voice-group-pill").textContent = "第 " + group + " 組";
+  document.getElementById("type-group-pill").textContent = "第 " + group + " 組";
+  document.getElementById("qr-voice-url").textContent = surl;
+  document.getElementById("qr-type-url").textContent = surl;
+
+  showScreen("screen-voice");
+  setTimeout(function(){ makeQR("qr-voice", surl, 72); makeQR("qr-type", surl, 72); }, 100);
+
+  // Mode tabs
+  document.getElementById("tab-type").addEventListener("click", function(){ showScreen("screen-type"); });
+  document.getElementById("tab-voice2").addEventListener("click", function(){ showScreen("screen-voice"); });
+  document.getElementById("tab-voice").addEventListener("click", function(){ showScreen("screen-voice"); });
+  document.getElementById("tab-type2").addEventListener("click", function(){ showScreen("screen-type"); });
+
+  // QR Modal
+  function openModal(title, url) {
+    document.getElementById("modal-title").textContent = title;
+    document.getElementById("modal-url").textContent = url;
+    document.getElementById("modal-qr").innerHTML = "";
+    document.getElementById("qr-modal").classList.add("open");
+    setTimeout(function(){ makeQR("modal-qr", url, 200); }, 50);
+  }
+  document.getElementById("qr-expand-voice").addEventListener("click", function(){ openModal("第 " + group + " 組 學員字幕", surl); });
+  document.getElementById("qr-expand-type").addEventListener("click", function(){ openModal("第 " + group + " 組 學員字幕", surl); });
+  document.getElementById("modal-close").addEventListener("click", function(){ document.getElementById("qr-modal").classList.remove("open"); });
+  document.getElementById("qr-modal").addEventListener("click", function(e){
+    if (e.target === document.getElementById("qr-modal")) document.getElementById("qr-modal").classList.remove("open");
+  });
+
+  // ── Voice ──
+  var micBtn = document.getElementById("mic-btn");
+  var micIcon = document.getElementById("mic-icon");
+  var micLabel = document.getElementById("mic-label");
+  var transcriptText = document.getElementById("transcript-text");
+  var interimText = document.getElementById("interim-text");
+  var placeholder = document.getElementById("voice-placeholder");
+  var recognition = null;
+  var isListening = false;
+
+  // Full transcript stored as array of sentences
+  var sentences = [];
+  var silenceTimer = null;
+  var currentInterim = "";
+
+  // Full log for download (includes timestamps)
+  var fullLog = [];
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // Add punctuation based on pause length and context
+  function addPunctuation(text) {
+    text = text.trim();
+    if (!text) return text;
+    // Already has ending punctuation
+    if (/[。！？，、]$/.test(text)) return text;
+    return text + "。";
+  }
+
+  function renderTranscript() {
+    transcriptText.textContent = sentences.join("\n");
+    // Auto scroll to bottom
+    var t = document.querySelector(".transcript");
+    t.scrollTop = t.scrollHeight;
+  }
+
+  function commitSentence(text) {
+    if (!text.trim()) return;
+    var punctuated = addPunctuation(text);
+    sentences.push(punctuated);
+    var now = new Date();
+    var timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2,"0") + ":" + String(now.getSeconds()).padStart(2,"0");
+    fullLog.push("[" + timeStr + "] " + punctuated);
+    renderTranscript();
+    // Send confirmed sentence to students
+    sendCaption(punctuated, false);
+  }
+
+  function stopListening() {
+    if (recognition) { try { recognition.stop(); } catch(e){} }
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    isListening = false;
+    micBtn.classList.remove("listening");
+    micIcon.textContent = "🎤";
+    micLabel.textContent = "開始說話";
+  }
+
+  micBtn.addEventListener("click", function() {
+    if (!SR) {
+      alert("您的瀏覽器不支援語音辨識。\niPhone 請使用 Safari；Android 請使用 Chrome。");
+      return;
+    }
+    if (isListening) { stopListening(); return; }
+
+    recognition = new SR();
+    recognition.lang = "zh-TW";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+      isListening = true;
+      micBtn.classList.add("listening");
+      micIcon.textContent = "⏹";
+      micLabel.textContent = "停止說話";
+      placeholder.style.display = "none";
+    };
+
+    recognition.onresult = function(e) {
+      var interim = "";
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          // Clear silence timer
+          if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+          currentInterim = "";
+          interimText.textContent = "";
+          commitSentence(t);
+        } else {
+          interim += t;
+        }
+      }
+
+      if (interim) {
+        currentInterim = interim;
+        interimText.textContent = interim;
+        // Send interim immediately so students see it right away
+        sendCaption((sentences.length ? sentences[sentences.length-1] + "\n" : "") + interim, true);
+
+        // Reset silence timer — if no new result in 1.5s, commit what we have
+        if (silenceTimer) clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(function() {
+          if (currentInterim) {
+            commitSentence(currentInterim);
+            currentInterim = "";
+            interimText.textContent = "";
+          }
+        }, 1500);
+      }
+    };
+
+    recognition.onerror = function(e) {
+      if (e.error === "not-allowed") {
+        alert("請允許麥克風權限後再試一次");
+        stopListening();
+      }
+    };
+
+    recognition.onend = function() {
+      if (isListening) {
+        try { recognition.start(); } catch(e) {}
+      }
+    };
+
+    recognition.start();
+  });
+
+  // Clear — also clears student screen
+  document.getElementById("clear-btn").addEventListener("click", function() {
+    sentences = [];
+    currentInterim = "";
+    transcriptText.textContent = "";
+    interimText.textContent = "";
+    placeholder.style.display = "";
+    sendCaption("", false); // clears student screen
+  });
+
+  // Download text log
+  document.getElementById("save-btn").addEventListener("click", function() {
+    if (fullLog.length === 0) {
+      alert("目前還沒有任何導覽內容可以儲存。");
+      return;
+    }
+    var now = new Date();
+    var dateStr = now.getFullYear() + "/" + (now.getMonth()+1) + "/" + now.getDate();
+    var header = "【第" + group + "組導覽紀錄】" + dateStr + "\n\n";
+    var content = header + fullLog.join("\n");
+    var blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "導覽紀錄_第" + group + "組_" + dateStr.replace(/\//g,"-") + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // ── Type mode ──
+  var sendBtn = document.getElementById("send-btn");
+  var typeTextarea = document.getElementById("type-textarea");
+  var sendStatus = document.getElementById("send-status");
+
+  sendBtn.addEventListener("click", async function() {
+    var text = typeTextarea.value.trim();
+    if (!text) return;
+    var punctuated = addPunctuation(text);
+    await sendCaption(punctuated, false);
+    sendStatus.textContent = "✓ 已送出";
+    setTimeout(function(){ sendStatus.textContent = ""; }, 2000);
+    typeTextarea.value = "";
+    typeTextarea.focus();
+  });
+
+  typeTextarea.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
+  });
+
+})();
+</script>
+</body>
+</html>
