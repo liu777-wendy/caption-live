@@ -310,25 +310,32 @@
       }
 
       if (finalText) {
-        // Clear silence timer since we got a confirmed result
         if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-        currentInterim = "";
-        interimText.textContent = "";
-        commitSentence(finalText);
+        // Deduplicate: skip if same as last committed sentence
+        var punctuated = addPunctuation(finalText.trim());
+        var lastSentence = sentences.length ? sentences[sentences.length - 1] : "";
+        if (punctuated !== lastSentence) {
+          currentInterim = "";
+          interimText.textContent = "";
+          commitSentence(finalText);
+        }
+        return;
       }
 
       if (interim) {
         currentInterim = interim;
         interimText.textContent = interim;
-        // Send interim + all confirmed sentences so students see everything
         var preview = sentences.join("\n") + (sentences.length ? "\n" : "") + interim;
         sendCaption(preview.trim(), true);
 
-        // Silence timer — commit if no new speech in 1.5s
         if (silenceTimer) clearTimeout(silenceTimer);
         silenceTimer = setTimeout(function() {
           if (currentInterim) {
-            commitSentence(currentInterim);
+            var p = addPunctuation(currentInterim.trim());
+            var last = sentences.length ? sentences[sentences.length - 1] : "";
+            if (p !== last) {
+              commitSentence(currentInterim);
+            }
             currentInterim = "";
             interimText.textContent = "";
           }
