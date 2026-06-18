@@ -27,6 +27,7 @@
     .caption-line.age-1{color:var(--old1);font-size:calc(var(--font-size)*0.82);font-weight:500}
     .caption-line.age-2{color:var(--old2);font-size:calc(var(--font-size)*0.68);font-weight:400}
     .caption-line.age-3{color:var(--old3);font-size:calc(var(--font-size)*0.58);font-weight:400;opacity:0.6!important}
+    .caption-line.interim{color:var(--old1);font-style:italic}
     @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
 
     #topbar{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;z-index:20}
@@ -132,26 +133,31 @@ function showError() {
   stage.style.display = "none";
 }
 
-function render(newText) {
+function render(newText, isInterim) {
   if (newText === currentText) return;
-  if (newText && currentText) history.push(currentText);
   currentText = newText;
-  while (history.length > maxHistory - 1) history.shift();
   box.innerHTML = "";
-  const visible = history.slice(-(maxHistory - 1));
-  visible.forEach((txt, i) => {
-    const age = Math.min(visible.length - i, 3);
-    const line = document.createElement("div");
-    line.className = `caption-line age-${age}`;
+  if (!currentText) return;
+
+  // Split by newline — speaker sends full multi-line text
+  var lines = currentText.split("\n").filter(function(l){ return l.trim(); });
+  var total = lines.length;
+  var startIdx = Math.max(0, total - maxHistory);
+  var visible = lines.slice(startIdx);
+
+  visible.forEach(function(txt, i) {
+    var isLast = (i === visible.length - 1);
+    var age = visible.length - 1 - i; // 0 = newest
+    var line = document.createElement("div");
+    if (isLast) {
+      line.className = isInterim ? "caption-line interim" : "caption-line";
+    } else {
+      var ageClass = Math.min(age, 3);
+      line.className = "caption-line age-" + ageClass;
+    }
     line.textContent = txt;
     box.appendChild(line);
   });
-  if (currentText) {
-    const line = document.createElement("div");
-    line.className = "caption-line";
-    line.textContent = currentText;
-    box.appendChild(line);
-  }
 }
 
 async function init() {
@@ -169,7 +175,8 @@ async function init() {
     statusText.textContent = "LIVE";
     const val = snapshot.val();
     const text = val && typeof val === "object" ? (val.text || "") : (val || "");
-    render(String(text));
+    const isInterim = val && typeof val === "object" ? (val.interim || false) : false;
+    render(String(text), isInterim);
   }, () => {
     dot.classList.remove("live");
     statusText.textContent = "連線失敗";
